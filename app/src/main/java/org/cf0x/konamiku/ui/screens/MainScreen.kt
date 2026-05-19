@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.cf0x.konamiku.R
 import org.cf0x.konamiku.data.AppDataStore
 import org.cf0x.konamiku.data.EmuMode
@@ -149,6 +150,11 @@ fun MainScreen(dataStore: AppDataStore) {
 
     fun activateCard(card: NfcCard) {
         scope.launch {
+            if (Build.VERSION.SDK_INT >= 36 &&
+                context.checkSelfPermission(Manifest.permission.POST_PROMOTED_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                promotedNotifPermLauncher.launch(Manifest.permission.POST_PROMOTED_NOTIFICATIONS)
+            }
             val realIdm   = card.idm.uppercase()
             val activeIdm = when (emuMode) {
                 EmuMode.NORMAL           -> realIdm
