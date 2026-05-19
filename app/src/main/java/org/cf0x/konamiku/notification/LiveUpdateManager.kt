@@ -15,7 +15,8 @@ import org.cf0x.konamiku.data.EmuMode
 
 object LiveUpdateManager {
 
-    const val CHANNEL_ID             = "konamiku_live"
+    private const val CHANNEL_ID_LIVE       = "konamiku_live"
+    private const val CHANNEL_ID_IMPORTANT  = "konamiku_live_important"
     const val NOTIF_ID               = 1001
     const val ACTION_TOGGLE_ACTIVATE = "org.cf0x.konamiku.ACTION_TOGGLE_ACTIVATE"
     const val ACTION_TOGGLE_MODE     = "org.cf0x.konamiku.ACTION_TOGGLE_MODE"
@@ -24,16 +25,25 @@ object LiveUpdateManager {
     private var pulseJob: Job? = null
 
     fun createChannel(context: Context) {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
+        val nm = context.getSystemService(NotificationManager::class.java)
+        val liveChannel = NotificationChannel(
+            CHANNEL_ID_LIVE,
             context.getString(R.string.notif_channel_name),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
             description = context.getString(R.string.notif_channel_desc)
             setShowBadge(false)
         }
-        context.getSystemService(NotificationManager::class.java)
-            .createNotificationChannel(channel)
+        val importantChannel = NotificationChannel(
+            CHANNEL_ID_IMPORTANT,
+            context.getString(R.string.notif_channel_name),
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = context.getString(R.string.notif_channel_desc)
+            setShowBadge(false)
+        }
+        nm.createNotificationChannel(liveChannel)
+        nm.createNotificationChannel(importantChannel)
     }
 
     fun postActive(context: Context, cardName: String, emuMode: EmuMode) {
@@ -83,7 +93,10 @@ object LiveUpdateManager {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val builder = Notification.Builder(context, CHANNEL_ID)
+        val supportsLiveUpdate = Build.VERSION.SDK_INT >= 36
+        val channelId = if (supportsLiveUpdate) CHANNEL_ID_LIVE else CHANNEL_ID_IMPORTANT
+
+        val builder = Notification.Builder(context, channelId)
             .setSmallIcon(Icon.createWithResource(context, R.drawable.ic_nfc))
             .setContentTitle(title)
             .setContentText(contentText)
@@ -110,6 +123,13 @@ object LiveUpdateManager {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
+        }
+        if (supportsLiveUpdate) {
+            runCatching {
+                Notification.Builder::class.java
+                    .getMethod("setRequestPromotedOngoing", Boolean::class.javaPrimitiveType)
+                    .invoke(builder, true)
+            }
         }
 
         nm.notify(NOTIF_ID, builder.build())

@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.cf0x.konamiku.R
 import org.cf0x.konamiku.data.AppDataStore
 import org.cf0x.konamiku.data.EmuMode
@@ -113,6 +114,9 @@ fun MainScreen(dataStore: AppDataStore) {
     val notifPermLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {}
+    val promotedNotifPermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {}
 
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -122,8 +126,9 @@ fun MainScreen(dataStore: AppDataStore) {
             }
         }
         LiveUpdateManager.createChannel(context)
+        val loadedCards = withContext(Dispatchers.IO) { jsonManager.loadCards() }
         cards.clear()
-        cards.addAll(jsonManager.loadCards())
+        cards.addAll(loadedCards)
         isLoading = false
     }
 
@@ -140,6 +145,11 @@ fun MainScreen(dataStore: AppDataStore) {
 
     fun activateCard(card: NfcCard) {
         scope.launch {
+            if (Build.VERSION.SDK_INT >= 36 &&
+                context.checkSelfPermission(Manifest.permission.POST_PROMOTED_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                promotedNotifPermLauncher.launch(Manifest.permission.POST_PROMOTED_NOTIFICATIONS)
+            }
             val realIdm   = card.idm.uppercase()
             val activeIdm = when (emuMode) {
                 EmuMode.NORMAL           -> realIdm
