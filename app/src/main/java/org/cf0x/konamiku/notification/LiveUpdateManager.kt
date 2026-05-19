@@ -29,6 +29,8 @@ object LiveUpdateManager {
     @Volatile
     private var lastNotifyKey: String? = null
 
+    private var pulseJob: Job? = null
+
     fun createChannel(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
         val liveChannel = NotificationChannel(
@@ -104,6 +106,9 @@ object LiveUpdateManager {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        val supportsLiveUpdate = Build.VERSION.SDK_INT >= 36
+        val channelId = if (supportsLiveUpdate) CHANNEL_ID_LIVE else CHANNEL_ID_IMPORTANT
+
         val builder = Notification.Builder(context, channelId)
             .setSmallIcon(Icon.createWithResource(context, R.drawable.ic_nfc))
             .setContentTitle(title)
@@ -134,10 +139,9 @@ object LiveUpdateManager {
         }
         if (supportsLiveUpdate) {
             runCatching {
-                val method = promotedOngoingMethod ?: Notification.Builder::class.java
+                Notification.Builder::class.java
                     .getMethod("setRequestPromotedOngoing", Boolean::class.javaPrimitiveType)
-                    .also { promotedOngoingMethod = it }
-                method.invoke(builder, true)
+                    .invoke(builder, true)
             }
         }
 

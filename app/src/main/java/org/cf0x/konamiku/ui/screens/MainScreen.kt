@@ -125,9 +125,15 @@ fun MainScreen(dataStore: AppDataStore) {
                 notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+        if (Build.VERSION.SDK_INT >= 36) {
+            if (context.checkSelfPermission(Manifest.permission.POST_PROMOTED_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                promotedNotifPermLauncher.launch(Manifest.permission.POST_PROMOTED_NOTIFICATIONS)
+            }
+        }
         LiveUpdateManager.createChannel(context)
-        val loadedCards = withContext(Dispatchers.IO) { jsonManager.loadCards() }
-        cards = loadedCards
+        cards.clear()
+        cards.addAll(jsonManager.loadCards())
         isLoading = false
     }
 
